@@ -53,7 +53,7 @@ Please don't run these processes as root. Use common sense for
 scalability and security. For my use case, the volume of tweets and commands
 made most of the scalability best practices unnecessary.
 
-## Possible new feature:
+## Possible new features:
   - [ ] Use async methods with Slack
   - [ ] Write to multiple channels
   - [ ] Separate context for multiple conversations
