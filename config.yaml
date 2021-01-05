@@ -1,0 +1,5 @@
+# config file
+channel: 'bot-dev'
+user_file: users.csv
+keyword_file: keywords.csv
+control_port: 3000
