@@ -1,3 +1,5 @@
+# helper for updating the bot homepage:
+# https://api.slack.com/surfaces/tabs/using
 import os
 from slack_sdk import WebClient
 
