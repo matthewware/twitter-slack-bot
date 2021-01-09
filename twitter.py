@@ -9,6 +9,15 @@ import slack as slack
 import yaml
 from watchgod import run_process, watch
 from watchgod.watcher import DefaultDirWatcher
+from http.client import IncompleteRead as http_incompleteRead
+from urllib3.exceptions import IncompleteRead as urllib3_incompleteRead
+
+import logging
+logging.basicConfig(filename='twitter.log', 
+                    encoding='utf-8',
+                    format='%(asctime)s TWITTER %(message)s', 
+                    datefmt='%m/%d/%Y %I:%M:%S %p', 
+                    level=logging.DEBUG)
 
 try:
     config = yaml.safe_load(open('config.yaml'))
@@ -96,33 +105,56 @@ def preprocess_text(status):
 #override tweepy.StreamListener to add logic to on_status
 class MyStreamListener(tweepy.StreamListener):
 
-    def __init__(self, channel='bot-dev', debug=False):
+    def __init__(self, channel='bot-dev'):
         super(MyStreamListener,self).__init__()
-        self.debug = debug
         self.channel = channel
         
     def on_status(self, status):
-        if self.debug: print("Got a tweet!")
-        
-        status = preprocess_text(status)
+        """Handle tweeet data"""
+        # return false to stop the stream and close the connection
+
+        try:
+            logging.info("Got a tweet!")
             
-        # parse for authors
-        if filter_tweets_by_user(status.user.screen_name):
-            if self.debug: print("found an author match")
-            # parse for keywords
-            if filter_tweets_by_word(status):
-                if self.debug: print("found a text match!")
-                # filter out reply tweets
-                if status.in_reply_to_status_id == None:
-                    slack.write_block(slack.build_message(status), 
-                                user_icon=status.user.profile_image_url, 
-                                channel=self.channel)
+            status = preprocess_text(status)
+                
+            # parse for authors
+            if filter_tweets_by_user(status.user.screen_name):
+                logging.info("found an author match")
+                # parse for keywords
+                if filter_tweets_by_word(status):
+                    logging.info("found a text match!")
+                    # filter out reply tweets
+                    if status.in_reply_to_status_id == None:
+                        slack.write_block(slack.build_message(status), 
+                                    user_icon=status.user.profile_image_url, 
+                                    channel=self.channel)
+
+        # check for a series of error Tweepy encounters every ~1 day or so
+        # https://github.com/tweepy/tweepy/issues/908
+        # https://github.com/tweepy/tweepy/issues/237
+        except BaseException as e:
+            logging.error("Error on_data: %s, Pausing..." % str(e))
+            time.sleep(5)
+            return True
+        except http_incompleteRead as e:
+            logging.error("http.client Incomplete Read error: %s" % str(e))
+            logging.error("~~~ Restarting stream search in 5 seconds... ~~~")
+            time.sleep(5)
+            #restart stream - simple as return true just like previous exception?
+            return True
+        except urllib3_incompleteRead as e:
+            logging.error("urllib3 Incomplete Read error: %s" % str(e))
+            logging.error("~~~ Restarting stream search in 5 seconds... ~~~")
+            time.sleep(5)
+            return True
 
     def on_error(self, status_code):
-        print("Recieved error code: {}".format(status_code))
+        """Handle HTTP errors from Twitter"""
+        logging.error("Recieved error code: {}".format(status_code))
         if status_code == 420:
             # request rate limit
-            print("API rate limited!! Waiting 60s and will try to restart")
+            logging.warning("API rate limited!! Waiting 60s and will try to restart")
             time.sleep(60)
             bot_stream = launch_bot()
 
@@ -140,40 +172,40 @@ def get_ids():
         ids.append(str(api.get_user(screen_name = user).id))
     return ids
 
-def launch_bot(channel=POST_CHANNEL, debug=True):
+def launch_bot(channel=POST_CHANNEL):
     """
     Start the stream and filter for users in the db list.
     All other filtering is done by the Listener.
     """
-    print("Creating listener...")
-    myStreamListener = MyStreamListener(channel=channel, debug=debug)
+    logging.info("Creating listener...")
+    myStreamListener = MyStreamListener(channel=channel)
     myStream = CustTweepyStream(auth = api.auth, 
                                 listener=myStreamListener, 
                                 include_entities=True, 
                                 tweet_mode = 'extended')
 
     # start filtering
-    print("Starting bot...")
+    logging.info("Starting bot...")
     # async needs to be true so we don't block the file watcher
     myStream.filter(follow=get_ids(), is_async=True)
 
     return myStream
 
-def restart_bot(stream, debug=False):
+def restart_bot(stream):
     # try to kill previous stream
     stream.disconnect()
     # return a new stream but wait some time to avoid rate limiting
     time.sleep(60)
-    return launch_bot(debug=debug)
+    return launch_bot()
 
 if __name__ == '__main__':
-    dev_mode = False
+    dev_mode = False # see file changes
     # run the bot watching for file changes using CSVWatcher
-    bot_stream = launch_bot(debug=dev_mode)
+    bot_stream = launch_bot()
 
     for changes in watch(os.path.abspath('.'), watcher_cls=CSVWatcher):
         if dev_mode:
             print(changes)
-            bot_stream = restart_bot(bot_stream, debug=dev_mode)
+            bot_stream = restart_bot(bot_stream)
         else:
             bot_stream = restart_bot(bot_stream)

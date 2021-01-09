@@ -1,4 +1,5 @@
 import os
+import logging
 
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
@@ -15,17 +16,19 @@ client = WebClient(token=slack_token)
 # Syncronous writing 
 def write_text(message, channel='bot-dev'):
     try:
+        logging.debug('Sending message info to Slack')
         response = client.chat_postMessage(channel=channel, text=message)
         assert response["message"]["text"] == message
     except SlackApiError as e:
         # You will get a SlackApiError if "ok" is False
         assert e.response["ok"] is False
         assert e.response["error"] # str like 'invalid_auth', 'channel_not_found'
-        print(f"Got an error: {e.response['error']}")
+        logging.error(f"Got an error: {e.response['error']}")
 
 # syncronous write blocks to Slack
 def write_block(blocks=[], user_icon="", attachments=[], channel='bot-dev'):
     try:
+        logging.debug('Sending block info to Slack')
         response = client.chat_postMessage(channel=channel, 
                                            blocks=blocks,
                                            attachments=attachments,
@@ -35,7 +38,7 @@ def write_block(blocks=[], user_icon="", attachments=[], channel='bot-dev'):
         # You will get a SlackApiError if "ok" is False
         assert e.response["ok"] is False
         assert e.response["error"] # str like 'invalid_auth', 'channel_not_found'
-        print(f"Got an error: {e.response['error']}")
+        logging.error(f"Got an error: {e.response['error']}")
 
 ############ async methods ####################################################
 # These are included for completeness but are currently unused in the

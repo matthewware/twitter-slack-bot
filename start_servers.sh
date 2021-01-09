@@ -5,6 +5,6 @@
 #conda activate slackbot
 
 # start control server
-nohup python server.py >> /var/log/twitter/twitter-control-server.log 2>&1 &
+nohup python server.py --log=WARNING &
 # start twitter stream
-nohup python twitter.py >> /var/log/twitter/twitter-bot.log 2>&1 &
+nohup python twitter.py --log=WARNING &

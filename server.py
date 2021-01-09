@@ -10,6 +10,12 @@ from flask import Flask, request
 
 import db as db
 
+import logging
+logging.basicConfig(filename='twitter.log', 
+                    format='%(asctime)s SERVER %(message)s', 
+                    datefmt='%m/%d/%Y %I:%M:%S %p', 
+                    level=logging.DEBUG)
+
 try:
     config = yaml.safe_load(open('config.yaml'))
 except yaml.YAMLError as exc:
@@ -75,14 +81,13 @@ def create_app():
         slack_signature = request.headers.get('X-Slack-Signature')
         is_good = verify_slack_request(req_timestamp, slack_signature)
 
-        if debug:
-            if is_good: print("Verified Slack request!")
-            print("command: " + request.form['command'])
-            print("text: " + request.form['text'])
-            print("response_url" + request.form['response_url'])
-            print("timestamp: " + request.headers.get('X-Slack-Request-Timestamp'))
-
         if is_good:
+            logging.info("Verified Slack request!")
+            logging.info("command: " + request.form['command'])
+            logging.info("text: " + request.form['text'])
+            logging.info("response_url" + request.form['response_url'])
+            logging.info("timestamp: " + request.headers.get('X-Slack-Request-Timestamp'))
+
             # always return empty OK so Slack knows we got the message
             if request.form['command'] == '/users':
                 return (str(db.get_users()), http.HTTPStatus.OK)
@@ -103,6 +108,7 @@ def create_app():
             if request.form['command'] == '/help':
                 return (help_message, http.HTTPStatus.OK)
         else:
+            logging.info("Got bad HTTP request")
             return ("", http.HTTPStatus.FORBIDDEN)
 
     return app

@@ -1,6 +1,7 @@
 import csv
 import yaml
 from pathlib import Path
+import logging
 
 try:
     config = yaml.safe_load(open('config.yaml'))
@@ -15,7 +16,8 @@ def get_keywords(file=keyword_file):
 
     if not Path(file).exists():
         with open(file, "w") as my_empty_csv:
-          pass  
+            logging.info('Creating new users file')
+            pass  
 
     with open(file, 'r') as csvfile:
         spamreader = csv.reader(csvfile, delimiter='\n')
@@ -32,6 +34,7 @@ def add_keyword(keyword, file=keyword_file):
         with open(file, 'a') as csvfile:    
             spamwriter = csv.writer(csvfile)
             spamwriter.writerow([keyword])
+            logging.info('adding {} to keywords file'.format(keyword))
 
 def remove_keyword(keyword, file=keyword_file):
     """Add a Twitter user to follow file"""
@@ -39,6 +42,7 @@ def remove_keyword(keyword, file=keyword_file):
     if keyword in keywords:
         keywords.remove(keyword)
         # write new keyword file
+        logging.info('removing {} from keywords file'.format(keyword))
         with open(file, 'w') as csvfile:
             spamwriter = csv.writer(csvfile, delimiter='\n')
             for k in keywords:
@@ -49,7 +53,8 @@ def get_users(file=user_file):
 
     if not Path(file).exists():
         with open(file, "w") as my_empty_csv:
-          pass
+            logging.info('Creating new users file')
+            pass
 
     with open(file, 'r') as csvfile:
         spamreader = csv.reader(csvfile, delimiter='\n')
@@ -57,6 +62,8 @@ def get_users(file=user_file):
         for row in spamreader:
             for item in row:
                 users.append(item)
+
+    logging.debug('returning users in file')
     return list(filter(lambda a: a != '', users))
 
 def add_user(user, file=user_file):
@@ -66,6 +73,7 @@ def add_user(user, file=user_file):
         with open(file, 'a') as csvfile:    
             spamwriter = csv.writer(csvfile)
             spamwriter.writerow([user])
+            logging.info('adding {} to users file'.format(user))
 
 def remove_user(user, file=user_file):
     """Add a Twitter user to follow file"""
@@ -73,6 +81,7 @@ def remove_user(user, file=user_file):
     if user in users:
         users.remove(user)
         # write new user file
+        logging.info('removing {} from users file'.format(user))
         with open(file, 'w') as csvfile:
             spamwriter = csv.writer(csvfile, delimiter='\n')
             for u in users:
