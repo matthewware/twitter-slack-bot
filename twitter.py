@@ -16,7 +16,6 @@ from urllib3.exceptions import IncompleteRead as urllib3_incompleteRead
 
 import logging
 logging.basicConfig(filename='twitter.log', 
-                    encoding='utf-8',
                     format='%(asctime)s TWITTER %(message)s', 
                     datefmt='%m/%d/%Y %I:%M:%S %p', 
                     level=logging.DEBUG)
@@ -221,7 +220,7 @@ def launch_bot(channel=POST_CHANNEL):
 def restart_bot(stream, listener):
     # try to kill previous stream
 
-   logging.info("Restarting bot stream!")
+    logging.info("Restarting bot stream!")
 
     # https://stackoverflow.com/questions/38560760/python-clear-items-from-priorityqueue
     # clear the queue on error
