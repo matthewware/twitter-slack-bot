@@ -148,7 +148,11 @@ class MyStreamListener(tweepy.StreamListener):
                                         user_icon=status.user.profile_image_url, 
                                         channel=self.channel)
 
-            # check for a series of error Tweepy encounters every ~1 day or so
+            # Check for an error Tweepy encounters every ~1 day or so.
+            # This is likely caused by the process_status function falling 
+            # behind the stream and should be fixed with the use of a queue 
+            # but we can still check for these errors for now.
+
             # https://github.com/tweepy/tweepy/issues/908
             # https://github.com/tweepy/tweepy/issues/237
             except BaseException as e:
