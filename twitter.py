@@ -1,6 +1,8 @@
 import sys
 import os
 import time
+from Queue import Queue
+from threading import Thread
 
 from tweepy import Stream
 import tweepy
@@ -105,13 +107,28 @@ def preprocess_text(status):
 #override tweepy.StreamListener to add logic to on_status
 class MyStreamListener(tweepy.StreamListener):
 
-    def __init__(self, channel='bot-dev'):
+    def __init__(self, channel='bot-dev', q=Queue()):
         super(MyStreamListener,self).__init__()
         self.channel = channel
+
+        # create a queue for tweet data
+        num_worker_threads = 4
+        self.q = q
+        for i in range(num_worker_threads):
+            t = Thread(target=self.process_status)
+            t.daemon = True
+            t.start()
         
     def on_status(self, status):
-        """Handle tweeet data"""
+        #store status in the queue
+        self.q.put(status)
+        return True
+
+    def process_status(self):
+        """Handle tweet data"""
         # return false to stop the stream and close the connection
+
+        status = self.q.get()
 
         try:
             logging.info("Got a tweet!")
@@ -148,6 +165,8 @@ class MyStreamListener(tweepy.StreamListener):
             logging.error("~~~ Restarting stream search in 5 seconds... ~~~")
             time.sleep(5)
             return True
+
+        self.q.task_done()
 
     def on_error(self, status_code):
         """Handle HTTP errors from Twitter"""
@@ -187,7 +206,8 @@ def launch_bot(channel=POST_CHANNEL):
     # start filtering
     logging.info("Starting bot...")
     # async needs to be true so we don't block the file watcher
-    myStream.filter(follow=get_ids(), is_async=True)
+    # stall_warnings for when the tweets come too fast
+    myStream.filter(follow=get_ids(), is_async=True, stall_warnings=False)
 
     return myStream
 
