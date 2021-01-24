@@ -57,4 +57,4 @@ made most of the scalability best practices unnecessary.
   - [ ] Use async methods with Slack
   - [ ] Write to multiple channels
   - [ ] Separate context for multiple conversations
-  - [ ] Proper logging
+  - [x] Proper logging
