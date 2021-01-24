@@ -1,7 +1,7 @@
 import sys
 import os
 import time
-from Queue import Queue
+from queue import Queue
 from threading import Thread
 
 from tweepy import Stream
