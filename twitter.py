@@ -127,49 +127,52 @@ class MyStreamListener(tweepy.StreamListener):
     def process_status(self):
         """Handle tweet data"""
         # return false to stop the stream and close the connection
+        while True:
 
-        status = self.q.get()
+            status = self.q.get()
 
-        try:
-            logging.info("Got a tweet!")
-            
-            status = preprocess_text(status)
+            try:
+                logging.info("Got a tweet!")
                 
-            # parse for authors
-            if filter_tweets_by_user(status.user.screen_name):
-                logging.info("found an author match")
-                # parse for keywords
-                if filter_tweets_by_word(status):
-                    logging.info("found a text match!")
-                    # filter out reply tweets
-                    if status.in_reply_to_status_id == None:
-                        slack.write_block(slack.build_message(status), 
-                                    user_icon=status.user.profile_image_url, 
-                                    channel=self.channel)
+                status = preprocess_text(status)
+                    
+                # parse for authors
+                if filter_tweets_by_user(status.user.screen_name):
+                    logging.info("found an author match")
+                    # parse for keywords
+                    if filter_tweets_by_word(status):
+                        logging.info("found a text match!")
+                        # filter out reply tweets
+                        if status.in_reply_to_status_id == None:
+                            slack.write_block(slack.build_message(status), 
+                                        user_icon=status.user.profile_image_url, 
+                                        channel=self.channel)
 
-        # check for a series of error Tweepy encounters every ~1 day or so
-        # https://github.com/tweepy/tweepy/issues/908
-        # https://github.com/tweepy/tweepy/issues/237
-        except BaseException as e:
-            logging.error("Error on_data: %s, Pausing..." % str(e))
-            time.sleep(5)
-            return True
-        except http_incompleteRead as e:
-            logging.error("http.client Incomplete Read error: %s" % str(e))
-            logging.error("~~~ Restarting stream search in 5 seconds... ~~~")
-            time.sleep(5)
-            #restart stream - simple as return true just like previous exception?
-            return True
-        except urllib3_incompleteRead as e:
-            logging.error("urllib3 Incomplete Read error: %s" % str(e))
-            logging.error("~~~ Restarting stream search in 5 seconds... ~~~")
-            time.sleep(5)
-            return True
+            # check for a series of error Tweepy encounters every ~1 day or so
+            # https://github.com/tweepy/tweepy/issues/908
+            # https://github.com/tweepy/tweepy/issues/237
+            except BaseException as e:
+                logging.error("Error on_data: %s, Pausing..." % str(e))
+                time.sleep(5)
+
+            except http_incompleteRead as e:
+                logging.error("http.client Incomplete Read error: %s" % str(e))
+                logging.error("~~~ Restarting stream search in 5 seconds... ~~~")
+                time.sleep(5)
+
+            except urllib3_incompleteRead as e:
+                logging.error("urllib3 Incomplete Read error: %s" % str(e))
+                logging.error("~~~ Restarting stream search in 5 seconds... ~~~")
+                time.sleep(5)
 
         self.q.task_done()
+        return True
 
     def on_error(self, status_code):
         """Handle HTTP errors from Twitter"""
+        with self.q.mutex: # thread safe
+            # clear the queue on error
+            self.q.clear()
         logging.error("Recieved error code: {}".format(status_code))
         if status_code == 420:
             # request rate limit
@@ -209,23 +212,39 @@ def launch_bot(channel=POST_CHANNEL):
     # stall_warnings for when the tweets come too fast
     myStream.filter(follow=get_ids(), is_async=True, stall_warnings=False)
 
-    return myStream
+    return myStream, myStreamListener
 
-def restart_bot(stream):
+def restart_bot(stream, listener):
     # try to kill previous stream
+
+   logging.info("Restarting bot stream!")
+
+    # https://stackoverflow.com/questions/38560760/python-clear-items-from-priorityqueue
+    # clear the queue on error
+    logging.info("Killing threads..")
+    # with listener.q.mutex: # thread safe never seemed to work
+    while not listener.q.empty():
+        print("in loop")
+        try:
+            listener.q.get(block=False,timeout=1.0)
+        except:
+            continue
+    listener.q.task_done()
+    logging.info("Disconnecting from stream")
     stream.disconnect()
     # return a new stream but wait some time to avoid rate limiting
+    logging.info("Waiting 60s to reconnect...")
     time.sleep(60)
     return launch_bot()
 
 if __name__ == '__main__':
     dev_mode = False # see file changes
     # run the bot watching for file changes using CSVWatcher
-    bot_stream = launch_bot()
+    bot_stream, bot_listener = launch_bot()
 
     for changes in watch(os.path.abspath('.'), watcher_cls=CSVWatcher):
         if dev_mode:
             print(changes)
-            bot_stream = restart_bot(bot_stream)
+            bot_stream, bot_listener = restart_bot(bot_stream, bot_listener)
         else:
-            bot_stream = restart_bot(bot_stream)
+            bot_stream, bot_listener = restart_bot(bot_stream, bot_listener)
