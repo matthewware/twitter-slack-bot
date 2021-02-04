@@ -157,16 +157,19 @@ class MyStreamListener(tweepy.StreamListener):
             except BaseException as e:
                 logging.error("Error on_data: %s, Pausing..." % str(e))
                 time.sleep(5)
+                continue
 
             except http_incompleteRead as e:
                 logging.error("http.client Incomplete Read error: %s" % str(e))
                 logging.error("~~~ Restarting stream search in 5 seconds... ~~~")
                 time.sleep(5)
+                continue
 
             except urllib3_incompleteRead as e:
                 logging.error("urllib3 Incomplete Read error: %s" % str(e))
                 logging.error("~~~ Restarting stream search in 5 seconds... ~~~")
                 time.sleep(5)
+                continue
 
         self.q.task_done()
         return True
