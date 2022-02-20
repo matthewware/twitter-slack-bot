@@ -19,6 +19,8 @@ should be able to create a 'slackbot' conda environment with the
 conda env create -f environment.yaml
 ```
 
+For more detail see the [blog post](https://matthewware.dev/Twitter-Bots/).
+
 ## Authentication
 
 You'll need to authenticate with Slack and Twitter. Go to the [Twitter 
