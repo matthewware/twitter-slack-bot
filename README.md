@@ -2,7 +2,7 @@
 
 Bot for streaming tweets to a slack channel written in python with 
 [Tweepy](https://github.com/tweepy/tweepy) and 
-[slack_sdk](https://github.com/slackapi/python-slack-sdk)
+[slack_sdk](https://github.com/slackapi/python-slack-sdk).
 
   * Uses Twitter Stream API
   * Filters for users and keywords
@@ -19,7 +19,11 @@ should be able to create a 'slackbot' conda environment with the
 conda env create -f environment.yaml
 ```
 
-For more detail see the [blog post](https://matthewware.dev/Twitter-Bots/).
+For more detail see the [blog post](https://matthewware.dev/Twitter-Bots/). Also keep
+in mind that Slack has made changes to its authentication and can do that without much
+warning. If you start getting `is_archived` or other errors from a working setup, the 
+first thing to try is regenerating the `SLACK_TOKEN` and possibly the
+`SLAKC_SIGNING_SECRET`.
 
 ## Authentication
 
